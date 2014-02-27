@@ -35,6 +35,7 @@ class Thorax.Views.Measure extends Thorax.Views.BonnieView
       @$('.d3-measure-viz').empty()
       @$('.d3-measure-viz').hide()
       @$('.btn-measure-viz').removeClass('btn-primary').addClass('btn-default')
+      @measureViz = Bonnie.viz.measureVisualzation().dataCriteria(@model.get("data_criteria")).measurePopulation(population)
     @listenTo @populationCalculation, 'select-patients:change', -> unless @$('.select-patient:checked').size() then @clearMeasureListings()
     # FIXME: change the name of these events to reflect what the measure calculation view is actually saying
     @logicView.listenTo @populationCalculation, 'rationale:clear', -> @clearRationale()
@@ -133,8 +134,9 @@ class Thorax.Views.Measure extends Thorax.Views.BonnieView
       try
         d3.select(@el).select('.d3-measure-viz').datum(@model.get("population_criteria")).call(@measureViz) 
         @$('rect').popover()
+        @$('.d3-measure-viz').css('height', ( d3.selectAll('rect').size() + @populationCalculation.model.populationCriteria().length) * 30)
       catch error
         @$('svg').toggle()
         @$('.d3-measure-viz').append( "<p>Sorry, this measure visualization isn't ready yet!</p>" )
         console.log error
-    console.log @$('.d3-measure-viz')
+    # console.log @$('.d3-measure-viz')
