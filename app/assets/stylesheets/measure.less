@@ -12,30 +12,8 @@
   }
 }
 
-.measure-listing-sidebar {
-  .make-sm-column(2.5);
-  .measures-title {
-    .make-sm-column(12);
-    .title-bar;
-    margin-bottom: 10px;
-    .short-title {
-      font-size: 1.4em;
-      line-height: 2.15;
-      margin-top: 0;
-      color: black;
-      text-transform: uppercase;
-    }
-    .fa {
-      color: black;
-    }
-  }
-  .list-group {
-    padding-top: 30px;
-  }
-}
-
 .right-sidebar {
-  .make-sm-column(3.5);
+  .make-sm-column(4);
   .patient-row {
     .make-sm-column(12);
     font-size: 1.6em;
@@ -47,13 +25,10 @@
     .make-sm-column(12);
     .title-bar;
     margin-bottom: 10px;
-    .short-title {
+    h1 {
       font-size: 1.8em;
       line-height: 1.75;
-      padding-right: 15px;
-      margin-top: 0;
-      color: black;
-      text-transform: uppercase;
+      margin-bottom: 0;
     }
     .fa {
       color: black;
@@ -79,6 +54,11 @@
           color: @brand-primary;
         }
       }
+      .import-patients, .btn-measure-listing {
+        .fa {
+          color: white;
+        }
+      }
       .btn-measure-listing-toggled {
         .fa {
           color: white;
@@ -95,6 +75,7 @@
 }
 
 .main {
+  .make-sm-column(8);
   > * {
     padding: 0 15px;
   }
@@ -103,12 +84,11 @@
   }
 
   .measure-title {
-    display:table;
+    // display:table;
     > div {
       display: table-cell;
       vertical-align: middle;
     }
-    .make-sm-column(12);
     .title-bar;
     .short-title {
       white-space: nowrap;
@@ -117,14 +97,17 @@
       padding-right: .5em;
     }
     .full-title {
-      line-height: 1.6;
+      font-size: 0.6em;
+      font-weight: normal;
+      line-height: 1;
       padding: .25em 0;
       padding-right: 1.8em;
+      text-transform: none;
     }
     .settings-container {
       position: absolute;
       top: 0;
-      right: 15px;
+      right: 30px;
     }
     .btn-settings {
       font-size: 1.8em;
@@ -147,14 +130,14 @@
           color: @btn-danger-bg;
         }
       }
-      .update-measure {
+      .update-measure, .btn-measure-viz, .export-patients {
         .fa {
           color: @brand-primary;
         }
       }
-      .export-patients {
+      .btn-primary {
         .fa {
-          color: @brand-primary;
+          color: white;
         }
       }
     }
@@ -167,7 +150,6 @@
   }
 
   .measure-dsp {
-    .make-sm-column(12);
     padding-top: 15px;
     padding-bottom: 30px;
     .measure-dsp-title {
@@ -180,14 +162,77 @@
         }
       }
     }
+    .measure-complexity {
+      font-weight: 700;
+      font-size: 1.2em;
+      .exclamation {
+        color: @grey;
+        font-size: 1.5em;
+      }
+      .good {
+        color: @green;
+      }
+      .popover-title {
+        font-weight: 700;
+        font-size: 1.2em;
+      }
+      .popover {
+        font-weight: 400;
+        font-size: 0.8em;
+        max-width: inherit;
+        .good, .exclamation {
+          font-size: 1.2em;
+        }
+        .score-icons {
+          padding-left: 15px;
+        }
+        .key-icons {
+          text-align: right;
+          padding-right: 15px;
+        }
+        td {
+          white-space: nowrap;
+        }
+      }
+    }
   }
 
   .measure-viz {
-    .make-sm-column(12);
     padding-top: 15px;
     padding-left: 0px;
+    .conjunction {
+      font-weight: bold;
+    }
+    ul {
+      padding-left: 20px;
+      list-style-type: none;
+      margin-bottom: 0px;
+      li {
+        .set-op-item {
+          list-style-type: square;
+        }
+      }
+    }
   }
 }
+
+.d3-measure-viz {
+    .precondition {
+      fill: @gray-light;
+    }
+    .coverage {
+      fill: @brand-primary;
+    }
+    .eval-true {
+      //for measure viz
+      fill: #449d44;
+    }
+    .eval-false, .eval-bad-specifics {
+      //for measure viz
+      fill: #c9302c;
+    }
+  }
+
 .logic-comment {
   font-style: italic;
   color: @gray-darker;

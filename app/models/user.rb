@@ -62,6 +62,8 @@ class User
   field :telephone,    :type => String
   field :admin, type:Boolean, :default => false
   field :portfolio, type:Boolean, :default => false
+  field :dashboard, type:Boolean, :default => false
+  field :dashboard_set, type:Boolean, :default => false
   field :approved, type:Boolean, :default => false
 
   field :crosswalk_enabled,  type:Boolean, default: false
@@ -115,16 +117,45 @@ class User
     update_attribute(:portfolio, false)
   end
 
+  def is_dashboard?
+    dashboard || false
+  end
+
+  def grant_dashboard
+    update_attribute(:dashboard, true)
+    update_attribute(:approved, true)
+  end
+
+  def revoke_dashboard
+    update_attribute(:dashboard, false)
+  end
+
+  def is_dashboard_set?
+    dashboard_set || false
+  end
+
+  def grant_dashboard_set
+    update_attribute(:dashboard_set, true)
+    update_attribute(:approved, true)
+  end
+
+  def revoke_dashboard_set
+    update_attribute(:dashboard_set, false)
+  end
+
   def is_approved?
     approved || false
   end
 
+  # Measure and patient counts can be pre-populated or just retrieved
+  attr_writer :measure_count
   def measure_count
-    measures.count
+    @measure_count || measures.count
   end
 
+  attr_writer :patient_count
   def patient_count
-    records.count
+    @patient_count || records.count
   end
 
   protected

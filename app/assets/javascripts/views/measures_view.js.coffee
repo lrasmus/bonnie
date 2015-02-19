@@ -11,14 +11,20 @@ class Thorax.Views.Measures extends Thorax.Views.BonnieView
     importMeasureView.appendTo(@$el)
     importMeasureView.display()
 
+  exportBundle: ->
+    @exportBundleView.exporting()
+    $.fileDownload "/users/bundle",
+      successCallback: => @exportBundleView.success()
+      failCallback: => @exportBundleView.fail()
+
   events:
     rendered: ->
       if @collection.isEmpty() then @importMeasure()
       else if @finalizeMeasuresView.measures.length
         @finalizeMeasuresView.appendTo(@$el)
         @finalizeMeasuresView.display()
-      $('.indicator-circle, .navbar-nav > li').removeClass('active')
-      $('.indicator-dashboard, .nav-dashboard').addClass('active')
+      @exportBundleView = new Thorax.Views.ExportBundleView() # Modal dialogs for exporting
+      @exportBundleView.appendTo(@$el)
 
 class Thorax.Views.MeasureRowView extends Thorax.Views.BonnieView
 
@@ -28,11 +34,7 @@ class Thorax.Views.MeasureRowView extends Thorax.Views.BonnieView
   initialize: ->
     # What we display changes for single vs multiple population measures
     @multiplePopulations = @model.get('populations').length > 1
-    if @multiplePopulations
-      # Create a collection of population titles and differences
-      differencesCollection = @model.get('populations').map (p) -> _(p.pick('title')).extend(differences: p.differencesFromExpected())
-      @differencesCollection = new Thorax.Collection differencesCollection
-    else
+    unless @multiplePopulations
       @differences = @model.get('populations').first().differencesFromExpected()
 
   updateMeasure: (e) ->
@@ -40,6 +42,31 @@ class Thorax.Views.MeasureRowView extends Thorax.Views.BonnieView
     importMeasureView.appendTo(@$el)
     importMeasureView.display()
 
+class Thorax.Views.PopulationView extends Thorax.Views.BonnieView
+
+  context: ->
+    _(super).extend differences: @model.differencesFromExpected()
+
+class Thorax.Views.PopulationTitle extends Thorax.Views.BonnieView
+  template: JST['measure/population']
+  editTemplate: JST['measure/population_edit']
+  tagName: 'span'
+
+  events:
+    'keyup input': 'enterName'
+
+  enterName: (e) ->
+    if(e.keyCode is 13) then @save()
+
+  edit: ->
+    @$el.html(@renderTemplate(@editTemplate))
+    @populate()
+
+  save: ->
+    @serialize()
+    @model.save {}, type: 'PUT', success: => @$el.html(@renderTemplate(@template))
+
+  cancel: -> @$el.html(@renderTemplate(@template))
 
 class Thorax.Views.MeasurePercentageView extends Thorax.Views.BonnieView
   template: JST['measure/percentage']

@@ -1,7 +1,8 @@
 class Thorax.Models.Measure extends Thorax.Model
   idAttribute: '_id'
   initialize: ->
-    @set 'patients', new Thorax.Collections.Patients
+    # Becasue we bootstrap patients we mark them as _fetched, so isEmpty() will be sensible
+    @set 'patients', new Thorax.Collections.Patients [], _fetched: true
   parse: (attrs) ->
     alphabet = 'abcdefghijklmnopqrstuvwxyz' # for population sub-ids
     populations = new Thorax.Collections.Population [], parent: this
@@ -49,7 +50,7 @@ class Thorax.Models.Measure extends Thorax.Model
       devices: ['removal_time', 'anatomical_structure']
       diagnostic_studies: []
       encounters: ['admit_time', 'discharge_time', 'discharge_disposition', 'facility',
-        'facility_arrival', 'facility_departure', 'transfer_to', 'transfer_from']
+        'facility_arrival', 'facility_departure', 'transfer_to', 'transfer_to_time', 'transfer_from', 'transfer_from_time']
       functional_statuses: []
       interventions: ['anatomical_structure']
       laboratory_tests: []

@@ -20,8 +20,8 @@
   {{#collection differences tag="div" class="panel panel-default" item-context=differenceContext}}
     <div class="panel-heading">
       <div class="panel-title">
-        <div class="patient row">
-          <div class="patient-status-icon-col status status-{{status}}">
+        <div class="patient">
+          <div class="patient-status-icon status status-{{status}}">
             {{#if ../patientsListing}}
               <label>
                 <span class="sr-only">Select {{patient.last}} {{patient.first}}</span>
@@ -37,104 +37,36 @@
               {{/if}}
             {{/if}}
           </div>
-          <div class="patient-user-icon-col">
+          <div class="patient-user-icon">
             <i class="fa fa-user" aria-hidden="true"></i><span class="sr-only">{{patient.last}} {{patient.first}}, patient result</span>
           </div>
-          <div class="patient-name-col">
-            <span class="sr-only">patient name: </span>{{patient.last}} {{patient.first}}
+          <div class="patient-btn">
+            {{#button "expandResult" class="close"}}<i class="fa fa-lg fa-angle-right expand-result-icon expand-result-icon-{{patient._id}}" aria-hidden="true"></i> <span class="sr-only">{{patient.last}} {{patient.first}}, Toggle Logic Pass/Fail</span>{{/button}}
           </div>
-          <div class="patient-status-col status status-{{status}}">
+          <div class="patient-status status status-{{status}}">
             <span class="sr-only">{{patient.last}} {{patient.first}}, status </span>{{status}}
           </div>
-          <div class="patient-btn-col">
-            {{#button "expandResult" class="close"}}<i class="fa fa-lg fa-angle-right expand-result-icon expand-result-icon-{{patient._id}}" aria-hidden="true"></i> <span class="sr-only">{{patient.last}} {{patient.first}}, Toggle Logic Pass/Fail</span>{{/button}}
+          <div class="patient-name">
+            <span class="sr-only">patient name: </span>{{patient.last}} {{patient.first}}
           </div>
         </div>
       </div>
     </div>
     <div class="panel-body toggle-result toggle-result-{{patient._id}} patient" style="display: none;">
-      <table class="table table-condensed col-xs-3">
-        <caption><span class="sr-only">Patient population results for {{patient.last}}, {{patient.first}}</span></caption>
-        <tr>
-          <th><span class="sr-only">Status</span></th>
-          <th scope="col">Population</th>
-          <th scope="col" style="text-align: center;">Expected</th>
-          <th scope="col" style="text-align: center;">Actual</th>
-        </tr>
-        {{#each comparisons}}
-          <tr>
-            <td style="text-align: center;">
-              {{#if match}}
-                <i class="fa fa-check pass" aria-hidden="true"></i><span class="sr-only">passed</span>
-              {{else}}
-                <i class="fa fa-times fail" aria-hidden="true"></i><span class="sr-only">failed</span>
-              {{/if}}
-            </td>
-            <td>{{name}}</td>
-            <td style="text-align: center;">
-              {{#ifCond key "==" "OBSERV"}}
-                {{#ifCond expected "==" undefined}}
-                  <p class="text-muted" style="margin: auto;">N/A</p>
-                {{else}}
-                  {{expected}}{{unit}}
-                {{/ifCond}}
-              {{else}}
-                {{#if ../../episode_of_care}}
-                  <span class="default">{{expected}}</span>
-                {{else}}
-                  {{#ifCond name "==" "MSRPOPL"}}
-                    {{#ifCond expected "==" undefined}}
-                      <p class="text-muted" style="margin: auto;">N/A</p>
-                    {{else}}
-                      <span class="default">{{expected}}</span>
-                    {{/ifCond}}
-                  {{else}}
-                    {{#if expected}}
-                      <i class="fa fa-check-square-o default" aria-hidden="true"></i><span class="sr-only">checked</span>
-                    {{else}}
-                      <i class="fa fa-square-o default" aria-hidden="true"></i><span class="sr-only">unchecked</span>
-                    {{/if}}
-                  {{/ifCond}}
-                {{/if}}
-              {{/ifCond}}
-            </td>
-            <td style="text-align: center;">
-              {{#ifCond key "==" "OBSERV"}}
-                {{#ifCond actual "==" undefined}}
-                  <p class="text-muted" style="margin: auto;">N/A</p>
-                {{else}}
-                  <span class="fail">{{actual}}{{unit}}</span>
-                {{/ifCond}}
-              {{else}}
-                {{#if ../../episode_of_care}}
-                  <span class="fail">{{actual}}</span>
-                {{else}}
-                  {{#ifCond name "==" "MSRPOPL"}}
-                    {{#ifCond expected "==" undefined}}
-                      <p class="text-muted" style="margin: auto;">N/A</p>
-                    {{else}}
-                      <span class="default">{{actual}}</span>
-                    {{/ifCond}}
-                  {{else}}
-                    {{#if actual}}
-                      <i class="fa fa-check-square-o default" aria-hidden="true"></i><span class="sr-only">checked</span>
-                    {{else}}
-                      <i class="fa fa-square-o default" aria-hidden="true"></i><span class="sr-only">unchecked</span>
-                    {{/if}}
-                  {{/ifCond}}
-                {{/if}}
-              {{/ifCond}}
-            </td>
-          </tr>
-        {{/each}}
-      </table>
-      {{#link "measures/{{measure_id}}/patients/{{patient._id}}/edit" class="btn btn-primary" expand-tokens=true}}EDIT<span class="sr-only"> patient {{patient.last}} {{patient.first}}</span>{{/link}}
+      {{template "population_calculation_results"}}
+      {{#link "measures/{{measure_id}}/patients/{{patient._id}}/edit" class="btn btn-primary" expand-tokens=true}}<i class="fa fa-pencil" aria-hidden="true"></i><span class="sr-only">edit patient {{patient.last}} {{patient.first}}</span>{{/link}}
       {{#button "clonePatient" class="btn btn-primary"}}CLONE<span class="sr-only"> patient {{patient.last}} {{patient.first}}</span>{{/button}}
       {{#button "showDelete" class="btn btn-danger-inverse"}}
         <i class="fa fa-minus-circle" aria-hidden="true"></i>
         <span class="sr-only">{{patient.last}} {{patient.first}}, Show Delete</span>
       {{/button}}
       {{#button "deletePatient" class="btn btn-danger delete-{{patient._id}}" style="display: none;" expand-tokens=true}}Delete<span class="sr-only"> patient {{patient.last}} {{patient.first}}</span>{{/button}}
+
+      <button class="btn btn-primary{{#if patient.is_shared}}-inverse{{/if}} pull-right share-{{patient._id}}" data-call-method="togglePatient">
+        <span class="btn-label">{{#if patient.is_shared}}Shared{{else}}Share{{/if}}</span>
+        <span class="sr-only"> patient {{patient.last}} {{patient.first}}</span>&nbsp;
+        <i class="fa {{#if patient.is_shared}}fa-minus{{else}}fa-plus{{/if}} share-icon" aria-hidden="true"></i>
+      </button>
     </div>
   {{/collection}}
 </div>

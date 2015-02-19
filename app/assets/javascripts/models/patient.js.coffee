@@ -11,8 +11,9 @@ class Thorax.Models.Patient extends Thorax.Model
     # This section is a bit unusual: we map from server side values to a more straight forward client
     # side representation; the reverse mapping would usually happen in toJSON(), but in this case it
     # happens on the server in the controller
-    attrs.ethnicity = attrs.ethnicity?.code
-    attrs.race = attrs.race?.code
+    # extract demographics from hash, or use extracted values when cloning
+    attrs.ethnicity = attrs.ethnicity?.code || attrs.ethnicity
+    attrs.race = attrs.race?.code || attrs.race
     attrs.payer = attrs.insurance_providers?[0]?.type || 'OT'
 
     attrs
@@ -114,6 +115,10 @@ class Thorax.Models.Patient extends Thorax.Model
     # We don't want to set a value for OBSERV, it should already exist or be created in the builder
     for populationCriteria in Thorax.Models.Measure.allPopulationCodes when population.has(populationCriteria) and populationCriteria != 'OBSERV'
       expectedValue.set populationCriteria, 0 unless expectedValue.has populationCriteria
+
+    if !_(@get('measure_ids')).contains measure.get('hqmf_set_id') # if patient wasn't made for this measure
+      expectedValue.set _.object(_.keys(expectedValue.attributes), []) # make expectations undefined instead of 0/fail
+
     expectedValue
 
   getExpectedValues: (measure) ->
@@ -131,44 +136,50 @@ class Thorax.Models.Patient extends Thorax.Model
 
   validate: ->
     errors = []
+    birthdate = if @get('birthdate') then moment(@get('birthdate'), 'X') else null
+    deathdate = if @get('deathdate') then moment(@get('deathdate'), 'X') else null
 
     unless @get('first').length > 0
       errors.push [@cid, 'first', 'Name fields cannot be blank']
     unless @get('last').length > 0
       errors.push [@cid, 'last', 'Name fields cannot be blank']
-    unless @get('birthdate')
+    unless birthdate
       errors.push [@cid, 'birthdate', 'Date of birth cannot be blank']
-    if @get('expired') && !@get('deathdate')
+    if @get('expired') && !deathdate
       errors.push [@cid, 'deathdate', 'Deceased patient must have date of death']
-    if @get('birthdate') && moment(@get('birthdate'), 'X').year() < 100
+    if birthdate && birthdate.year() < 100
       errors.push [@cid, 'birthdate', 'Date of birth must have four digit year']
-    if @get('deathdate') && moment(@get('deathdate'), 'X').year() < 100
+    if deathdate && deathdate.year() < 100
       errors.push [@cid, 'deathdate', 'Date of death must have four digit year']
-    if @get('deathdate') && @get('birthdate') && @get('deathdate') < @get('birthdate')
+    if deathdate && birthdate && deathdate.isBefore birthdate
       errors.push [@cid, 'deathdate', 'Date of death cannot be before date of birth']
 
     @get('source_data_criteria').each (sdc) =>
+      start_date = if sdc.get('start_date') then moment(sdc.get('start_date') / 1000, 'X') else null
+      end_date = if sdc.get('end_date') then moment(sdc.get('end_date') / 1000, 'X') else null
       # Note that birth and death dates are stored in seconds, data criteria dates in milliseconds
-      unless sdc.get('start_date')
+      unless start_date
         errors.push [sdc.cid, 'start_date', "#{sdc.get('title')} must have start date"]
-      if sdc.get('end_date') && sdc.get('start_date') && sdc.get('end_date') < sdc.get('start_date')
+      if end_date && start_date && end_date.isBefore start_date
         errors.push [sdc.cid, 'end_date', "#{sdc.get('title')} stop date cannot be before start date"]
-      if sdc.get('start_date') && moment(sdc.get('start_date') / 1000, 'X').year() < 100
+      if start_date && start_date.year() < 100
         errors.push [sdc.cid, 'start_date', "#{sdc.get('title')} start date must have four digit year"]
-      if sdc.get('end_date') && moment(sdc.get('end_date') / 1000, 'X').year() < 100
+      if end_date && end_date.year() < 100
         errors.push [sdc.cid, 'end_date', "#{sdc.get('title')} stop date must have four digit year"]
-      if sdc.get('start_date') && @get('birthdate') && sdc.get('start_date') < @get('birthdate') * 1000
-        errors.push [sdc.cid, 'start_date', "#{sdc.get('title')} start date must be after patient date of birth"]
-      if sdc.get('start_date') && @get('deathdate') && sdc.get('start_date') > @get('deathdate') * 1000
+      # Start date *can* be before patient birth, if the encounter is when the patient is being born!
+      # if sdc.get('start_date') && @get('birthdate') && sdc.get('start_date') < @get('birthdate') * 1000
+      #   errors.push [sdc.cid, 'start_date', "#{sdc.get('title')} start date must be after patient date of birth"]
+      if start_date && deathdate && start_date.isAfter deathdate
         errors.push [sdc.cid, 'start_date', "#{sdc.get('title')} start date must be before patient date of death"]
-      if sdc.get('end_date') && @get('birthdate') && sdc.get('end_date') < @get('birthdate') * 1000
+      if end_date && birthdate && end_date.isBefore birthdate
         errors.push [sdc.cid, 'end_date', "#{sdc.get('title')} stop date must be after patient date of birth"]
-      if sdc.get('end_date') && @get('deathdate') && sdc.get('end_date') > @get('deathdate') * 1000
+      if end_date && deathdate && end_date.isAfter deathdate
         errors.push [sdc.cid, 'end_date', "#{sdc.get('title')} stop date must be before patient date of death"]
 
     return errors if errors.length > 0
 
 class Thorax.Collections.Patients extends Thorax.Collection
+  url: '/patients'
   model: Thorax.Models.Patient
   dedupName: (patient) ->
     return patient.first if !(patient.first && patient.last)

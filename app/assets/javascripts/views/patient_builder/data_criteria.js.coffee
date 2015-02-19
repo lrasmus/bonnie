@@ -16,12 +16,23 @@ class Thorax.Views.SelectCriteriaView extends Thorax.Views.BonnieView
   events:
     rendered: ->
       # FIXME: We'd like to do this via straight thorax events, doesn't seem to work...
-      @$('.collapse').on 'show.bs.collapse hide.bs.collapse', => @$('.panel-expander').toggleClass('fa-angle-right fa-angle-down')
+      @$('.collapse').on 'show.bs.collapse hide.bs.collapse', (e) =>
+        $('a.panel-title[data-toggle="collapse"]').toggleClass('closed').find('.panel-icon').toggleClass('fa-3x fa-1x') #shrink others
+        @$('.panel-expander').toggleClass('fa-angle-right fa-angle-down')
+        @$('.panel-icon').toggleClass('fa-3x fa-2x')
+        @$('a.panel-title[data-toggle="collapse"]').toggleClass('closed')
+        if e.type is 'show' then $('a.panel-title[data-toggle="collapse"]').next('div.in').not(e.target).collapse('hide') # hide open ones
+
   faIcon: -> @collection.first()?.toPatientDataCriteria()?.faIcon()
 
 
 class Thorax.Views.SelectCriteriaItemView extends Thorax.Views.BuilderChildView
   addCriteriaToPatient: -> @trigger 'bonnie:dropCriteria', @model.toPatientDataCriteria()
+  context: ->
+    desc = @model.get('description').split(/, (.*)/)?[1] or @model.get('description')
+    _(super).extend
+      type: desc.split(": ")[0]
+      detail: desc.split(": ")[1]
 
 
 class Thorax.Views.EditCriteriaView extends Thorax.Views.BuilderChildView
@@ -68,7 +79,7 @@ class Thorax.Views.EditCriteriaView extends Thorax.Views.BuilderChildView
   # When we create the form and populate it, we want to convert times to moment-formatted dates
   context: ->
     cmsIdParts = @model.get("cms_id").match(/CMS(\d+)(V\d+)/i)
-    desc = @model.get('description').split(", ")?[1] or @model.get('description')
+    desc = @model.get('description').split(/, (.*)/)?[1] or @model.get('description')
     _(super).extend
       start_date: moment.utc(@model.get('start_date')).format('L') if @model.get('start_date')
       start_time: moment.utc(@model.get('start_date')).format('LT') if @model.get('start_date')
@@ -319,13 +330,13 @@ class Thorax.Views.EditCriteriaValueView extends Thorax.Views.BuilderChildView
     # If it's a date/time field, automatically chose the date type and pre-enter a date
     attributes = @serialize(set: false) # Gets copy of attributes from form without setting model
     if attributes.key in ['ADMISSION_DATETIME', 'DISCHARGE_DATETIME', 'FACILITY_LOCATION_ARRIVAL_DATETIME',
-                          'FACILITY_LOCATION_DEPARTURE_DATETIME', 'INCISION_DATETIME', 'REMOVAL_DATETIME']
+                          'FACILITY_LOCATION_DEPARTURE_DATETIME', 'INCISION_DATETIME', 'REMOVAL_DATETIME', 'TRANSFER_TO_DATETIME', 'TRANSFER_FROM_DATETIME']
       @$('select[name=type]').val('TS').change()
       criteria = @parent.model
       switch attributes.key
-        when 'ADMISSION_DATETIME', 'FACILITY_LOCATION_ARRIVAL_DATETIME', 'INCISION_DATETIME'
+        when 'ADMISSION_DATETIME', 'FACILITY_LOCATION_ARRIVAL_DATETIME', 'INCISION_DATETIME', 'TRANSFER_FROM_DATETIME'
           date = moment.utc(criteria.get('start_date')) if criteria.has('start_date')
-        when 'DISCHARGE_DATETIME', 'FACILITY_LOCATION_DEPARTURE_DATETIME', 'REMOVAL_DATETIME'
+        when 'DISCHARGE_DATETIME', 'FACILITY_LOCATION_DEPARTURE_DATETIME', 'REMOVAL_DATETIME', 'TRANSFER_TO_DATETIME'
           date = moment.utc(criteria.get('end_date')) if criteria.has('end_date')
           date ?= moment.utc(criteria.get('start_date') + (15 * 60 * 1000)) if criteria.has('start_date')
       @$('input[name=start_date]').datepicker('setDate', date.format('L')) if date

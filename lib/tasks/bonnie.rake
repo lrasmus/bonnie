@@ -53,6 +53,58 @@ namespace :bonnie do
       puts "#{ENV['EMAIL']} is no longer a portfolio user."
     end
 
+    desc %{Grant an existing bonnie user dashboard privileges.
+
+    You must identify the user by USER_ID or EMAIL:
+
+    $ rake bonnie:users:grant_dashboard USER_ID=###
+    or
+    $ rake bonnie:users:grant_dashboard EMAIL=xxx}
+    task :grant_dashboard => :environment do
+      user = User.find_by email: ENV['EMAIL']
+      user.grant_dashboard()
+      puts "#{ENV['EMAIL']} is now a dashboard user."
+    end
+
+    desc %{Remove the dashboard role from an existing bonnie user.
+
+    You must identify the user by USER_ID or EMAIL:
+
+    $ rake bonnie:users:revoke_dashboard USER_ID=###
+    or
+    $ rake bonnie:users:revoke_dashboard EMAIL=xxx}
+    task :revoke_dashboard => :environment do
+      user = User.find_by email: ENV["EMAIL"]
+      user.revoke_dashboard()
+      puts "#{ENV['EMAIL']} is no longer a dashboard user."
+    end
+
+    desc %{Grant an existing bonnie user dashboard_set privileges.
+
+    You must identify the user by USER_ID or EMAIL:
+
+    $ rake bonnie:users:grant_dashboard_set USER_ID=###
+    or
+    $ rake bonnie:users:grant_dashboard_set EMAIL=xxx}
+    task :grant_dashboard_set => :environment do
+      user = User.find_by email: ENV['EMAIL']
+      user.grant_dashboard_set()
+      puts "#{ENV['EMAIL']} is now a dashboard_set user."
+    end
+
+    desc %{Remove the dashboard_set role from an existing bonnie user.
+
+    You must identify the user by USER_ID or EMAIL:
+
+    $ rake bonnie:users:revoke_dashboard_set USER_ID=###
+    or
+    $ rake bonnie:users:revoke_dashboard_set EMAIL=xxx}
+    task :revoke_dashboard_set => :environment do
+      user = User.find_by email: ENV["EMAIL"]
+      user.revoke_dashboard_set()
+      puts "#{ENV['EMAIL']} is no longer a dashboard_set user."
+    end
+
     desc 'Associate the currently loaded measures with the first User; use EMAIL=<user email> to select another user'
     task :associate_user_with_measures => :environment do
       user_email = ENV['EMAIL'] || User.first.email
@@ -90,6 +142,51 @@ namespace :bonnie do
       end
     end
 
+    desc 'Move a meaure from one user account to another'
+    task :move_measure => :environment do
+      source_email = ENV['SOURCE_EMAIL']
+      dest_email = ENV['DEST_EMAIL']
+      cms_id = ENV['CMS_ID']
+
+      puts "Moving '#{cms_id}' from '#{source_email}' to '#{dest_email}'..."
+
+      # Find source and destination user accounts
+      raise "#{source_email} not found" unless source = User.find_by(email: source_email)
+      raise "#{dest_email} not found" unless dest = User.find_by(email: dest_email)
+
+      # Find the measure and associated records we're moving
+      raise "#{cms_id} not found" unless measure = source.measures.find_by(cms_id: cms_id)
+      records = source.records.where(measure_ids: measure.hqmf_set_id)
+
+      # Find the value sets we'll be *copying* (not moving!)
+      value_sets = measure.value_sets.map(&:clone) # Clone ensures we save a copy and don't overwrite original
+
+      # Write the value set copies, updating the user id and bundle
+      raise "No destination user bundle" unless dest.bundle
+      puts "Copying value sets..."
+      value_sets.each do |vs|
+        vs.user = dest
+        vs.bundle = dest.bundle
+        vs.save
+      end
+
+      # Update the user id and bundle for the existing records
+      puts "Moving patient records..."
+      records.each do |r|
+        puts "  #{r.first} #{r.last}"
+        r.user = dest
+        r.bundle = dest.bundle
+        r.save
+      end
+
+      # Same for the measure
+      puts "Moving measure..."
+      measure.user = dest
+      measure.bundle = dest.bundle
+      measure.save
+
+      puts "Done!"
+    end
   end
 
   namespace :db do
@@ -160,6 +257,20 @@ namespace :bonnie do
           Measure.nin(hqmf_set_id: demo_measure_ids).delete
           Record.nin(measure_ids: demo_measure_ids).delete
         end
+        Rake::Task['bonnie:db:resave_measures'].invoke # Updates the complexity data to most recent format
+      end
+    end
+
+    desc 'Re-save all measures, ensuring that all post processing steps (like calculating complexity) are performed again'
+    task :resave_measures => :environment do
+      Measure.each do |m|
+        puts "Re-saving \"#{m.title}\" [#{m.user.email}]"
+        begin
+          m.save
+        rescue => e
+          puts "ERROR re-saving measure!"
+          puts e.message
+        end
       end
     end
 
@@ -229,15 +340,47 @@ namespace :bonnie do
   namespace :measures do
     desc 'Pre-generate measure JavaScript and cache in the DB'
     task :pregenerate_js => :environment do
-      puts "Pre-generating measure JavaScript"
-      Measure.each do |measure|
-        puts "\tGenerating JavaScript for '#{measure.title}'"
+      user = User.find_by email: ENV["EMAIL"] if ENV["EMAIL"]
+      measures = user ? Measure.by_user(user) : Measure.all
+      puts "Pre-generating measure JavaScript for #{ user ? user.email : 'all users'}"
+      measures.each do |measure|
+        puts "\tGenerating JavaScript [ #{measure.user.email} ] '#{measure.title}'"
         measure.generate_js
       end
+    end
+
+    desc 'Clear generated measure cache for a user'
+    task :clear_js => :environment do
+      user = User.find_by email: ENV["EMAIL"] if ENV["EMAIL"]
+      measures = user ? Measure.by_user(user) : Measure.all
+      puts "Clearing measure JavaScript for #{ user ? user.email : 'all users'}"
+      measures.each do |measure|
+        puts "\tClearing JavaScript [ #{measure.user.email} ] '#{measure.title}'"
+        measure.clear_cached_js
+      end
+    end
+
+    desc 'Reset measure JavaScript -- clears existing cache and regenerates JavaScript and cache in the DB'
+    task :reset_js => :environment do
+      Rake::Task['bonnie:measures:clear_js'].invoke
+      Rake::Task['bonnie:measures:pregenerate_js'].invoke
     end
   end
 
   namespace :patients do
+
+    desc "Share a random set of patients to the patient bank"
+    task :share_with_bank=> :environment do
+      Record.where(is_shared: true).update_all(is_shared: false) # reset everyone to not shared.
+      # share specified number of patients if possible, else share 25% of all existing patients
+      to_share = ((ENV["NUMBER"].to_i > 0) && (ENV["NUMBER"].to_i <= Record.count)) ? ENV["NUMBER"].to_i : (Record.count*0.25).round
+      patients = Record.all.sample(to_share)
+      patients.each do |patient|
+        patient['is_shared'] = true
+        patient.save
+      end
+      puts "Shared patients to the patient bank."
+    end
 
     desc "Materialize all patients"
     task :materialize_all=> :environment do

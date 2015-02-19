@@ -15,6 +15,7 @@ class Thorax.Views.PopulationCalculation extends Thorax.Views.BonnieView
     # Make sure the sort order updates as results come in
     @differences.on 'change', @differences.sort, @differences
     @patientsListing = false
+    @toggledPatient = null
 
   context: ->
     _(super).extend measure_id: @measure.get('hqmf_set_id')
@@ -39,6 +40,7 @@ class Thorax.Views.PopulationCalculation extends Thorax.Views.BonnieView
       @trigger 'rationale:show', @$(".toggle-result-#{selectedResult.patient.id}").model().result
       @$(".expand-result-icon-#{selectedResult.patient.id}").removeClass('fa-angle-right').addClass('fa-angle-down')
       @coverageView.hideCoverage()
+      @toggledPatient = @$(".toggle-result-#{selectedResult.patient.id}").model().result
     else @coverageView.showCoverage()
 
   showDelete: (e) ->
@@ -48,6 +50,8 @@ class Thorax.Views.PopulationCalculation extends Thorax.Views.BonnieView
     # if we clicked on the icon, grab the icon button instead
     deleteIcon.toggleClass('btn-danger btn-danger-inverse')
     deleteButton.toggle()
+    shareButton = @$(".share-#{result.get('patient_id')}")
+    shareButton.toggle() # get share button out the way
 
   deletePatient: (e) ->
     result = $(e.target).model().result
@@ -62,6 +66,25 @@ class Thorax.Views.PopulationCalculation extends Thorax.Views.BonnieView
     patient = @measure.get('patients').get result.get('patient_id')
     bonnie.navigateToPatientBuilder patient.deepClone(omit_id: true, dedupName: true), @measure
 
+  togglePatient: (e) ->
+    $btn = $(e.currentTarget)
+
+    result = $btn.model().result
+    patient = @measure.get('patients').get result.get('patient_id')
+
+    # toggle the patient's 'is_shared' attribute
+    if patient.get('is_shared')
+      patient.save({'is_shared': false}, silent: true)
+      $btn.find('.btn-label').text 'Share'
+    else
+      patient.save({'is_shared': true}, silent: true)
+      $btn.find('.btn-label').text 'Shared'
+
+    # switch displayed button
+    $btn.toggleClass 'btn-primary btn-primary-inverse'
+    $btn.find('.share-icon').toggleClass 'fa-plus fa-minus'
+
+
   expandResult: (e) ->
     @trigger 'rationale:clear'
     result = $(e.target).model().result
@@ -69,6 +92,7 @@ class Thorax.Views.PopulationCalculation extends Thorax.Views.BonnieView
       @$(".toggle-result-#{result.patient.id}").hide()
       @$(".expand-result-icon-#{result.patient.id}").removeClass('fa-angle-down').addClass('fa-angle-right')
       @coverageView.showCoverage()
+      @toggledPatient = null
     else
       @$('.toggle-result').hide()
       @$('.expand-result-icon').removeClass('fa-angle-down').addClass('fa-angle-right')
@@ -76,6 +100,7 @@ class Thorax.Views.PopulationCalculation extends Thorax.Views.BonnieView
       @$(".expand-result-icon-#{result.patient.id}").removeClass('fa-angle-right').addClass('fa-angle-down')
       @trigger 'rationale:show', result
       @coverageView.hideCoverage()
+      @toggledPatient = result
 
   togglePatientsListing: ->
     @patientsListing = !@patientsListing
